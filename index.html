@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>GES 387 Group Project</title>
+
+<meta charset="utf-8"/>
+
+        <link rel="stylesheet" href="https://unpkg.com/leaflet@1.3.4/dist/leaflet.css"
+        integrity="sha512-puBpdR0798OZvTTbP4A8Ix/l+A4dHDD0DGqYW6RQ+9jxkRFclaxxQb/SJAWZfWAkuyeQUytO7+7N4QKrDh+drA=="
+        crossorigin=""/>
+
+        <link rel="stylesheet" href="L.Control.ZoomBox.css" />
+
+        <script src="https://unpkg.com/leaflet@1.3.4/dist/leaflet.js"
+        integrity="sha512-nMMmRyTVoLYqjP9hrbed9S+FzjZHW5gY1TWCHA5ckwXZBadntCNs8kEqAWdrb9O7rxbCaA4lKTIWjDXZxflOcA=="
+        crossorigin=""></script>
+
+        <script src="L.Control.ZoomBox.min.js"></script>
+
+        <script type="text/javascript" src="YangtzeRiver.js"></script>
+        <script type="text/javascript" src="FishData.js"></script>
+
+        <!-- Load c3.css -->
+        <link href="https://cdnjs.cloudflare.com/ajax/libs/c3/0.6.8/c3.css" rel="stylesheet">
+
+        <!-- Load d3.js and c3.js -->
+        <script src="https://d3js.org/d3.v5.min.js"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/c3/0.6.8/c3.min.js"></script>
+
+        <style type="text/css">
+          html, body { margin: 0; padding: 0; height: 100%; }
+          #map { min-height: 100%; }
+
+          .title {
+              padding: 6px 8px;
+              font: 14px/16px Arial, Helvetica, sans-serif;
+              background: white;
+              background: rgba(255,255,255,0.8);
+              box-shadow: 0 0 15px rgba(0,0,0,0.2);
+              border-radius: 5px;
+          }
+
+        </style>
+
+    </head>
+
+    <body>
+        <div id="map" style="height: 500px"></div>
+        <div id="chart"></div>
+
+        <script type="text/javascript">
+
+          var map = L.map('map', {
+              center: [30.8091016,111.060382],
+              zoom: 5
+          });
+
+
+          var Esri_WorldImagery = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+	attribution: 'Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community'
+           }).addTo(map);
+
+           var control = L.control.zoomBox({modal: true});
+                   map.addControl(control);
+
+           var myStyle = {
+              "color": "#0101DF",
+              "weight": 3,
+              "opacity": 2.0
+          };
+
+
+        var river1 = L.geoJSON(river, {
+          style: myStyle
+          }).addTo(map);
+
+//BASIN LAYER PROPERTIES
+
+           function getColor(value) {
+            return value === 1 ? '#fbb4ae':
+                   value === 2  ? '#b3cde3':
+                   value === 3  ? '#ccebc5':
+                   value === 4  ? '#decbe4':
+                                 '#fed9a6';
+ }
+           function style(feature){
+               return {
+                   fillColor: getColor(feature.properties.Id),   // pop_den is the field name for the population density data
+                   weight: 1,
+                   opacity: 1,
+                   color: 'black',
+                   fillOpacity: 0.5
+               };
+           }
+
+
+
+           function makeChart(props) {
+
+                c3.generate({
+                 bindto: '#chart',
+                 size: {
+                   height: 250,
+                   width: 250
+                 },
+                 title:{
+                     text: [props.Name],
+                 },
+                 data: {
+                   columns: [
+                       ['Extinct', props.Extinct],
+                       ['Extinct in the Wild', props.Extinct_Wi],
+                       ['Critically Endangered', props.Crit_End],
+                       ['Endangered', props.Endangered],
+                       ['Vulnerable', props.Vulnerable]
+                   ],
+                   type: 'bar',
+                 },
+
+                 donut:{
+                  label: {
+                 show: false
+                   },
+                     width: 10
+                 },
+                 color:{
+                     pattern:["#EC7063", "#5DADE2","#27AE60","#F4D03F","#E67E22"]
+                     }
+                 });
+             }
+
+             function highlightFeature(e) {
+                 var layer = e.target;
+
+                 // You can adjust the values below to change the highlighting styles of features on mouseover
+                 layer.setStyle({
+                     weight: 3,
+                     color: 'black',
+                     fillOpacity: 0.7
+
+                 });
+
+                 // Fix display layer problems with IE and Opera (no need to change anything)
+                 if (!L.Browser.ie && !L.Browser.opera) {
+                     layer.bringToFront();
+                 }
+
+                 makeChart(layer.feature.properties);
+             }
+
+             var geojson;
+
+             function resetHighlight(e) {
+                 geojson.resetStyle(e.target);
+
+             }
+
+             // Combine the mouseover and mouseout actions (defined above)
+             function onEachFeature(feature, layer) {
+                 layer.on({
+                     mouseover: highlightFeature,
+                     mouseout: resetHighlight,
+                 });
+             }
+
+             var tooltip = document.getElementById("chart");
+
+             geojson = L.geoJson(fish, {
+            style:style,
+            onEachFeature: onEachFeature
+        }).bindTooltip(tooltip).addTo(map);
+
+        var damIcon = L.icon({
+        iconUrl: 'dam.png', // url that links to the icon image file
+        iconSize:     [20, 20], // size of the icon image in pixels
+        iconAnchor:   [19, 19], // the top left corner of the icon will be aligned so that this point is at the marker's geographical location
+        popupAnchor:  [0, -10] // point from which the popup should open, relative to the iconAnchor
+        });
+
+        var marker1 = L.marker([30.823390434752195,111.0036277770996], {icon: damIcon}).addTo(map);
+
+        marker1.bindPopup('<p style="color:black; font-weight:bold">Three Gorges Dam</p>');
+
+//LAYERCONTROL
+
+
+
+//TITLE
+
+        var title = L.control({position: 'topright'}); // position of the title
+
+        title.onAdd = function (map) {
+            this._div = L.DomUtil.create('div', 'title'); // create a div with a class "title"
+            this._div.innerHTML = "<h3>Impacts of the Three Gorges Dam on Yangtze River Fish Species</h3>";  // Title text, may use html to customize
+            return this._div;
+        };
+
+        title.addTo(map);
+
+        var basemaps = {
+            "Three Gorges Dam": marker1
+        };
+        var overlaymaps = {
+            "Yangtze River": river1,
+            "Yangtze River Basin": geojson
+        };
+
+        L.control.layers(basemaps, overlaymaps).addTo(map);
+
+
+        </script>
+   </body>
+</html>
+
+,
